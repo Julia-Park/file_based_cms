@@ -12,7 +12,10 @@ end
 helpers do; end
 
 before do
-  @docs = Dir.children("data").select { |fname| File.ftype("data/#{fname}") == "file" }
+  root = File.expand_path('..', __FILE__)
+  @docs = Dir.glob(root + '/data/*').map do |path|
+    File.basename(path)
+  end
 end
 
 get '/' do
