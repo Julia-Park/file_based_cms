@@ -29,4 +29,18 @@ class AppTest < Minitest::Test
     assert last_response["Content-Type"].match("text/plain")
     assert_includes last_response.body, "Ruby is simple in appearance, but is very complex inside"
   end
+
+  def test_content_does_not_exist
+    get "/thisfiledoesnotexist.txt"
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
+
+    get "/"
+    refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
+  end
 end

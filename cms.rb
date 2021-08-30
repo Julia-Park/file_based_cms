@@ -5,11 +5,17 @@ require 'sinatra/reloader' if development?
 require 'sinatra/content_for'
 require 'tilt/erubis'
 
-helpers do; end
+helpers do
+  def display_error
+    session[:error] ? session.delete(:error) : ""
+  end
+end
 
 configure do
   set :erb, :escape_html => true
   # set :public_folder, __dir__ + '/data'
+  enable:sessions
+  set :session_secret, 'secret'
 end
 
 before do
@@ -26,6 +32,11 @@ end
 get "/:filename" do
   file_path = @root + "/data/" + params[:filename]
 
-  headers["Content-Type"] = "text/plain"
-  File.read(file_path)
+  if File.file?(file_path)
+    headers["Content-Type"] = "text/plain"
+    File.read(file_path)
+  else
+    session[:error] = "#{params[:filename]} does not exist."
+    redirect "/"
+  end
 end
