@@ -4,6 +4,24 @@ require 'sinatra'
 require 'sinatra/reloader' if development?
 require 'sinatra/content_for'
 require 'tilt/erubis'
+require 'redcarpet'
+
+def render_markdown(string)
+  markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
+  markdown.render(string)
+end
+
+def load_document(path)
+  content = File.read(path)
+
+  case File.extname(path)
+  when ".txt"
+    headers["Content-Type"] = "text/plain"
+    content
+  when ".md"
+    render_markdown(content)
+  end
+end
 
 helpers do
   def display_error
@@ -33,8 +51,7 @@ get "/:filename" do
   file_path = @root + "/data/" + params[:filename]
 
   if File.file?(file_path)
-    headers["Content-Type"] = "text/plain"
-    File.read(file_path)
+    load_document(file_path)
   else
     session[:error] = "#{params[:filename]} does not exist."
     redirect "/"
