@@ -9,7 +9,7 @@ helpers do; end
 
 configure do
   set :erb, :escape_html => true
-  set :public_folder, __dir__ + '/data'
+  # set :public_folder, __dir__ + '/data'
 end
 
 before do
@@ -24,7 +24,7 @@ get '/' do
 end
 
 get "/:filename" do
-  file_path = root + "/data/" + params[:filename]
+  file_path = @root + "/data/" + params[:filename]
 
   headers["Content-Type"] = "text/plain"
   File.read(file_path)
