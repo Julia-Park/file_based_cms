@@ -11,3 +11,5 @@ He has often said that he is “trying to make Ruby natural, not simple,” in a
 Building on this, he adds:
 
     Ruby is simple in appearance, but is very complex inside, just like our human body1.
+
+Trying to edit text.

@@ -12,7 +12,7 @@ class AppTest < Minitest::Test
     Sinatra::Application
   end
 
-  def test_index
+  def test_index # test for listing of documents, edit links
     get "/"
 
     assert_equal 200, last_response.status
@@ -21,6 +21,7 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "about.txt"
     assert_includes last_response.body, "changes.txt"
     assert_includes last_response.body, "history.txt"
+    assert_includes last_response.body, '<a href="about.md/edit">'
   end
 
   def test_content
@@ -45,11 +46,37 @@ class AppTest < Minitest::Test
     refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
   end
 
-  def text_markdown_to_html # test for content type (HTML)
+  def test_markdown_to_html # test for content type (HTML)
     get "/about.md"
 
     assert_equal 200, last_response.status
     assert_includes last_response["Content-Type"], "text/html"
     assert_includes last_response.body, "<h1>Ruby is...</h1>"
+  end
+
+  def test_content_edit_page
+    get "/changes.txt/edit"
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Edit content of changes.txt:"
+    assert_includes last_response.body, "<textarea"
+    assert_includes last_response.body, 'type="submit"'
+  end
+
+  def test_content_update
+    new_content = "THIS IS A NEW EDIT VIA TESTING - #{Time.now.getutc}"
+
+    post "/editme.md/edit", updated_content: new_content
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "editme.md has been updated."
+
+    get "/editme.md"
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, new_content
   end
 end
