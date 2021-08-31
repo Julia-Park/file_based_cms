@@ -6,6 +6,8 @@ require 'sinatra/content_for'
 require 'tilt/erubis'
 require 'redcarpet'
 
+SUPPORTED_TYPES = ['.txt', '.md']
+
 def render_markdown(string)
   markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
   markdown.render(string)
@@ -22,7 +24,7 @@ end
 def load_document(path)
   content = get_content(path)
 
-  case File.extname(path)
+  case File.extname(path).downcase
   when ".txt"
     headers["Content-Type"] = "text/plain"
     content
@@ -31,11 +33,11 @@ def load_document(path)
   end
 end
 
-def validate_document(path)
+def validate_document_access(path)
   if File.file?(path)
     yield
   else
-    session[:error] = "#{params[:filename]} does not exist."
+    session[:message] = "#{params[:filename]} does not exist."
     redirect "/"
   end
 end
@@ -52,11 +54,31 @@ def root
   end
 end
 
-helpers do
-  def display_error
-    session[:error] ? session.delete(:error) : ""
+def create_document(name, content = "")
+  File.open(File.join(root, name), "w") do |file|
+    file.write(content)
   end
+end
 
+def validate_document_creation(path)
+  new_doc = File.basename(path)
+
+  if File.file?(path)
+    status 409
+    session[:message] = "#{new_doc} already exists."
+    erb :new_doc, layout: :layout
+  else
+    create_document(new_doc)
+    session[:message] = "#{new_doc} was created."
+    redirect "/"
+  end
+end
+
+def supported_doc_type?(filename)
+  SUPPORTED_TYPES.include?(File.extname(filename).downcase)
+end
+
+helpers do
   def display_message
     session[:message] ? session.delete(:message) : ""
   end
@@ -79,16 +101,36 @@ get '/' do
   erb :doc_list, layout: :layout
 end
 
+get "/new_doc/" do
+  erb :new_doc, layout: :layout
+end
+
+post "/new_doc/" do
+  new_doc = params[:doc_name]
+
+  if new_doc == ""
+    status 422
+    session[:message] = "A name is required."
+    erb :new_doc, layout: :layout
+  elsif !supported_doc_type?(new_doc)
+    status 415
+    session[:message] = "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
+    erb :new_doc, layout: :layout
+  else new_doc == ""
+    validate_document_creation(File.join(root, new_doc))
+  end
+end
+
 get "/:filename" do # look at a document
   path = file_path(params[:filename])
 
-  validate_document(path) { load_document(path) }
+  validate_document_access(path) { load_document(path) }
 end
 
 get "/:filename/edit" do # edit a document
   path = file_path(params[:filename])
 
-  validate_document(path) do
+  validate_document_access(path) do
     @content = get_content(path)
     erb :doc_edit, layout: :layout
   end

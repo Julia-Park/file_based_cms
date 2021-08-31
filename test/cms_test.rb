@@ -13,12 +13,6 @@ class AppTest < Minitest::Test
     Sinatra::Application
   end
 
-  def create_document(name, content = "")
-    File.open(File.join(root, name), "w") do |file|
-      file.write(content)
-    end
-  end
-
   def setup
     FileUtils.mkdir_p(root)
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
@@ -29,7 +23,7 @@ class AppTest < Minitest::Test
     FileUtils.rm_rf(root)
   end
 
-  def test_index # test for listing of documents, edit links
+  def test_index # test for listing of documents, edit links, new document
     get "/"
 
     assert_equal 200, last_response.status
@@ -37,9 +31,10 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "about.md"
     assert_includes last_response.body, "changes.txt"
     assert_includes last_response.body, '<a href="about.md/edit">'
+    assert_includes last_response.body, 'New Document'
   end
 
-  def test_content
+  def test_content # test to see if content can be accessed
     get "/changes.txt"
 
     assert_equal 200, last_response.status
@@ -47,7 +42,7 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "This site is dedicated to history of Ruby language"
   end
 
-  def test_content_does_not_exist # test for redirection, error message, clearing of error message
+  def test_nonexistant_content # test for redirection, error message, clearing of error message
     get "/thisfiledoesnotexist.txt"
 
     assert_equal 302, last_response.status
@@ -61,7 +56,7 @@ class AppTest < Minitest::Test
     refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
   end
 
-  def test_markdown_to_html # test for content type (HTML)
+  def test_markdown_to_html # test for content conversion from markdown to HTML
     get "/about.md"
 
     assert_equal 200, last_response.status
@@ -69,25 +64,27 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "<h1>Ruby is"
   end
 
-  def test_content_edit_page
+  def test_content_edit_page # test contents of edit page
     get "/changes.txt/edit"
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "Edit content of changes.txt:"
     assert_includes last_response.body, "<textarea"
     assert_includes last_response.body, 'type="submit"'
+  end
 
-    get "/doesnotexist.txt/edit"
+  def test_nonexistant_content_edit_page
+    get "/thisfiledoesnotexist.txt/edit"
 
     assert_equal 302, last_response.status
     
     get last_response["Location"]
 
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "doesnotexist.txt does not exist."
+    assert_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
 
     get "/"
-    refute_includes last_response.body, "doesnotexist.txt does not exist."
+    refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
   end
 
   def test_content_update
@@ -105,5 +102,60 @@ class AppTest < Minitest::Test
     get "/changes.txt"
     assert_equal 200, last_response.status
     assert_includes last_response.body, new_content
+  end
+
+  def test_new_content_page
+    get "/new_doc/"
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Add a new document:"
+    assert_includes last_response.body, '<input type="text"'
+    assert_includes last_response.body, '<input type="submit"'
+  end
+
+  def test_content_creation
+    new_doc = "new.txt"
+
+    post "/new_doc/", doc_name: new_doc
+    
+    assert_equal 302, last_response.status
+    
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "#{new_doc} was created."
+
+    get "/"
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, new_doc
+  end
+
+  def test_content_creation_no_name
+    post "/new_doc/", doc_name: ""
+
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "A name is required."
+  end
+
+  def test_content_creation_invalid_type
+    post "/new_doc/", doc_name: "invalid.invalid"
+    
+    assert_equal 415, last_response.status
+    assert_includes last_response.body, "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
+  end
+
+  def test_content_creation_no_type
+    post "/new_doc/", doc_name: "invalid"
+    
+    assert_equal 415, last_response.status
+    assert_includes last_response.body, "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
+  end
+
+  def test_content_creation_already_exists
+    post "/new_doc/", doc_name: "about.md"
+    
+    assert_equal 409, last_response.status
+    assert_includes last_response.body, "about.md already exists."
   end
 end
