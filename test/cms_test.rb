@@ -76,6 +76,18 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "Edit content of changes.txt:"
     assert_includes last_response.body, "<textarea"
     assert_includes last_response.body, 'type="submit"'
+
+    get "/doesnotexist.txt/edit"
+
+    assert_equal 302, last_response.status
+    
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "doesnotexist.txt does not exist."
+
+    get "/"
+    refute_includes last_response.body, "doesnotexist.txt does not exist."
   end
 
   def test_content_update
