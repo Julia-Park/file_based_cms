@@ -11,7 +11,7 @@ def render_markdown(string)
   markdown.render(string)
 end
 
-def load_content(path)
+def get_content(path)
   File.read(path)
 end
 
@@ -20,7 +20,7 @@ def write_content(path, new_content)
 end
 
 def load_document(path)
-  content = load_content(path)
+  content = get_content(path)
 
   case File.extname(path)
   when ".txt"
@@ -32,7 +32,15 @@ def load_document(path)
 end
 
 def file_path(filename)
-  @root + "/data/" + params[:filename]
+  File.join(root, params[:filename])
+end
+
+def root
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/data", __FILE__)
+  else
+    File.expand_path("../data", __FILE__)
+  end
 end
 
 helpers do
@@ -53,8 +61,7 @@ configure do
 end
 
 before do
-  @root = File.expand_path('..', __FILE__)
-  @docs = Dir.glob(@root + '/data/*').map do |path|
+  @docs = Dir.glob(root + '/*').map do |path|
     File.basename(path) if File.ftype(path) == 'file'
   end.compact
 end
@@ -76,7 +83,7 @@ end
 
 get "/:filename/edit" do # edit a document
   path = file_path(params[:filename])
-  @content = load_content(path)
+  @content = get_content(path)
   erb :doc_edit, layout: :layout
 end
 
