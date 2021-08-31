@@ -31,6 +31,15 @@ def load_document(path)
   end
 end
 
+def validate_document(path)
+  if File.file?(path)
+    yield
+  else
+    session[:error] = "#{params[:filename]} does not exist."
+    redirect "/"
+  end
+end
+
 def file_path(filename)
   File.join(root, params[:filename])
 end
@@ -73,18 +82,16 @@ end
 get "/:filename" do # look at a document
   path = file_path(params[:filename])
 
-  if File.file?(path)
-    load_document(path)
-  else
-    session[:error] = "#{params[:filename]} does not exist."
-    redirect "/"
-  end
+  validate_document(path) { load_document(path) }
 end
 
 get "/:filename/edit" do # edit a document
   path = file_path(params[:filename])
-  @content = get_content(path)
-  erb :doc_edit, layout: :layout
+
+  validate_document(path) do
+    @content = get_content(path)
+    erb :doc_edit, layout: :layout
+  end
 end
 
 post "/:filename/edit" do # submit edits to a document
