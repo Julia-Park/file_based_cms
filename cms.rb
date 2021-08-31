@@ -142,3 +142,13 @@ post "/:filename/edit" do # submit edits to a document
   session[:message] = "#{params[:filename]} has been updated."
   redirect "/"
 end
+
+post "/:filename/delete" do
+  path = file_path(params[:filename])
+
+  validate_document_access(path) do
+    File.delete(path)
+    session[:message] = "#{params[:filename]} was deleted."
+    redirect "/"
+  end
+end

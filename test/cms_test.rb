@@ -31,7 +31,8 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "about.md"
     assert_includes last_response.body, "changes.txt"
     assert_includes last_response.body, '<a href="about.md/edit">'
-    assert_includes last_response.body, 'New Document'
+    assert_includes last_response.body, '<a href="/new_doc/">'
+    assert_includes last_response.body, 'action="about.md/delete"'
   end
 
   def test_content # test to see if content can be accessed
@@ -158,4 +159,17 @@ class AppTest < Minitest::Test
     assert_equal 409, last_response.status
     assert_includes last_response.body, "about.md already exists."
   end
+
+  def test_content_deletion
+    post "/about.md/delete"
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "about.md was deleted."
+    refute_includes last_response.body, '<a href="about.md">'
+  end
+
 end
