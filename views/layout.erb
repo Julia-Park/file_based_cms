@@ -1,10 +1,14 @@
 <!doctype html>
-<html lang="en-US"
+<html lang="en-US">
   <head>
-    <%== display_error %>
-    <%== display_message %>
+    <link rel="stylesheet" href="/stylesheets/main.css">
   </head>
   <body>
+    <p class="message">
+      <%== display_error %>
+      <%== display_message %>
+    </p>
+    
     <main>
       <%== yield %>
     </main>
