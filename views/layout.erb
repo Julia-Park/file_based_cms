@@ -4,10 +4,12 @@
     <link rel="stylesheet" href="/stylesheets/main.css">
   </head>
   <body>
+    <% if session[:message] %>
     <p class="message">
       <%== display_message %>
     </p>
-    
+    <% end %>
+ 
     <main>
       <%== yield %>
     </main>

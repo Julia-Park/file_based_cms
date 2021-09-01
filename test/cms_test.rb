@@ -16,6 +16,7 @@ class AppTest < Minitest::Test
   def setup
     FileUtils.mkdir_p(root)
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
+    create_document "another_document.txt"
     create_document "changes.txt", "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
   end
 
@@ -30,7 +31,7 @@ class AppTest < Minitest::Test
     assert_includes last_response["Content-Type"], "text/html"
     assert_includes last_response.body, "about.md"
     assert_includes last_response.body, "changes.txt"
-    assert_includes last_response.body, '<a href="about.md/edit">'
+    assert_includes last_response.body, 'action="about.md/edit'
     assert_includes last_response.body, '<a href="/new_doc/">'
     assert_includes last_response.body, 'action="about.md/delete"'
   end

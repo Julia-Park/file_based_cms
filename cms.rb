@@ -80,7 +80,7 @@ end
 
 helpers do
   def display_message
-    session[:message] ? session.delete(:message) : ""
+    session.delete(:message) if session[:message]
   end
 end
 
