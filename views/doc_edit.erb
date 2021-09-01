@@ -1,7 +1,5 @@
 <form action="/<%= params[:filename] %>/edit" method="post">
-  <label for="updated_content">Edit content of <%= params[:filename] %>:</label>
-  <br>
-  <textarea name="updated_content" rows="30" cols="100"><%= @content %></textarea>
-  <br>
+  <label for="updated_content">Edit content of <%= params[:filename] %>:</label><br>
+  <textarea name="updated_content" rows="30" cols="100"><%= @content %></textarea><br>
   <input type="submit" value="Save Changes">
 </form>

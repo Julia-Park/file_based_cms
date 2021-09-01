@@ -7,6 +7,9 @@ require 'tilt/erubis'
 require 'redcarpet'
 
 SUPPORTED_TYPES = ['.txt', '.md']
+VALID_CREDENTIALS = [ 
+  ['admin', 'secret'] 
+]
 
 def render_markdown(string)
   markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
@@ -78,6 +81,10 @@ def supported_doc_type?(filename)
   SUPPORTED_TYPES.include?(File.extname(filename).downcase)
 end
 
+def valid_credentials?(username, password)
+  VALID_CREDENTIALS.include?([username, password])
+end
+
 helpers do
   def display_message
     session.delete(:message) if session[:message]
@@ -99,6 +106,16 @@ end
 
 get '/' do
   erb :doc_list, layout: :layout
+end
+
+get '/users/signin' do
+  if valid_credentials?(params[:username], params[:password])
+    session[:username] = params[:username]
+    session[:message] = 'Welcome!'
+    redirect '/'
+  else
+    erb :sign_in, layout: :layout
+  end
 end
 
 get "/new_doc/" do
