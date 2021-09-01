@@ -6,6 +6,14 @@ require "fileutils"
 
 require_relative "../cms.rb"
 
+def sign_in(user='admin', pass='secret')
+  post "/users/signin", username: user, password: pass
+end
+
+def sign_out
+  get '/users/signout'
+end
+
 class AppTest < Minitest::Test
   include Rack::Test::Methods
 
@@ -18,14 +26,69 @@ class AppTest < Minitest::Test
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
     create_document "another_document.txt"
     create_document "changes.txt", "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
-    session[:username] = 'admin'
   end
 
   def teardown
+    sign_out
     FileUtils.rm_rf(root)
   end
 
-  def test_index # test for listing of documents, edit links, new document
+  def test_sign_in_page
+    get '/users/signin'
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'action="/users/signin" method="post"'
+    assert_includes last_response.body, 'label for="username">Username'
+    assert_includes last_response.body, 'label for="password">Password'
+    assert_includes last_response.body, 'type="submit" value="Sign In"'
+  end
+
+  def test_sign_in
+    sign_in('admin', 'secret')
+
+    assert_equal 302, last_response.status
+
+    get last_response['Location']
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'Welcome!'
+    assert_includes last_response.body, 'about.md'
+  end
+
+  def test_sign_in_invalid_credentials
+    sign_in('invalid', 'password')
+
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, 'Invalid credentials.'
+    assert_includes last_response.body, 'action="/users/signin" method="post"'
+    assert_includes last_response.body, 'label for="username">Username'
+    assert_includes last_response.body, 'label for="password">Password'
+    assert_includes last_response.body, 'type="submit" value="Sign In"'
+  end
+
+  def test_sign_out
+    sign_in
+    sign_out
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+
+    assert_includes last_response.body, "You have been signed out."
+    assert_includes last_response.body, 'action="/users/signin"'
+  end
+
+  def test_index_signed_out
+    get "/"
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'action="/users/signin"'
+    refute_includes last_response.body, 'about.md'
+  end
+
+  def test_index_signed_in # test for listing of documents, edit links, new document
+    sign_in
+
     get "/"
 
     assert_equal 200, last_response.status
@@ -35,8 +98,11 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, 'action="about.md/edit'
     assert_includes last_response.body, '<a href="/new_doc/">'
     assert_includes last_response.body, 'action="about.md/delete"'
+    assert_includes last_response.body, 'Signed in as admin'
+    assert_includes last_response.body, 'action="/users/signout"'
+    assert_includes last_response.body, 'Sign Out</button>'
   end
-
+ 
   def test_content # test to see if content can be accessed
     get "/changes.txt"
 
@@ -118,6 +184,7 @@ class AppTest < Minitest::Test
 
   def test_content_creation
     new_doc = "new.txt"
+    sign_in
 
     post "/new_doc/", doc_name: new_doc
     
@@ -127,11 +194,7 @@ class AppTest < Minitest::Test
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "#{new_doc} was created."
-
-    get "/"
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, new_doc
+    assert_includes last_response.body, "href=\"#{new_doc}\""
   end
 
   def test_content_creation_no_name
@@ -173,5 +236,4 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "about.md was deleted."
     refute_includes last_response.body, '<a href="about.md">'
   end
-
 end

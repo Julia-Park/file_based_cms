@@ -93,8 +93,7 @@ end
 
 configure do
   set :erb, :escape_html => true
-  # set :public_folder, __dir__ + '/data'
-  enable:sessions
+  enable :sessions
   set :session_secret, 'secret'
 end
 
@@ -109,7 +108,6 @@ get '/' do
     erb :index, layout: :layout
   else
     erb :doc_list, layout: :layout
-
   end
 end
 
@@ -123,6 +121,7 @@ post '/users/signin' do
     session[:message] = 'Welcome!'
     redirect '/'
   else
+    status 422
     session[:message] = 'Invalid credentials.'
     erb :sign_in, layout: :layout
   end
