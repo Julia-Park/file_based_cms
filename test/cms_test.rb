@@ -22,6 +22,7 @@ class AppTest < Minitest::Test
   end
 
   def setup
+    sign_in
     FileUtils.mkdir_p(root)
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
     create_document "another_document.txt"
@@ -44,6 +45,7 @@ class AppTest < Minitest::Test
   end
 
   def test_sign_in
+    sign_out
     sign_in('admin', 'secret')
 
     assert_equal 302, last_response.status
@@ -56,6 +58,7 @@ class AppTest < Minitest::Test
   end
 
   def test_sign_in_invalid_credentials
+    sign_out
     sign_in('invalid', 'password')
 
     assert_equal 422, last_response.status
@@ -67,7 +70,6 @@ class AppTest < Minitest::Test
   end
 
   def test_sign_out
-    sign_in
     sign_out
 
     assert_equal 302, last_response.status
@@ -79,6 +81,7 @@ class AppTest < Minitest::Test
   end
 
   def test_index_signed_out
+    sign_out
     get "/"
 
     assert_equal 200, last_response.status
@@ -87,8 +90,6 @@ class AppTest < Minitest::Test
   end
 
   def test_index_signed_in # test for listing of documents, edit links, new document
-    sign_in
-
     get "/"
 
     assert_equal 200, last_response.status

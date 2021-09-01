@@ -85,6 +85,22 @@ def valid_credentials?(username, password)
   VALID_CREDENTIALS.include?([username, password])
 end
 
+def validate_user
+  valid_users = VALID_CREDENTIALS.map { |cred| cred[0] }
+  if valid_users.include?(session[:username])
+    yield
+  else
+    invalid_user_force_sign_in
+  end
+end
+
+def invalid_user_force_sign_in
+  session.delete(:username)
+  status 422
+  session[:message] = 'Invalid credentials.'
+  erb :sign_in, layout: :layout
+end
+
 helpers do
   def display_message
     session.delete(:message) if session[:message]
@@ -121,9 +137,7 @@ post '/users/signin' do
     session[:message] = 'Welcome!'
     redirect '/'
   else
-    status 422
-    session[:message] = 'Invalid credentials.'
-    erb :sign_in, layout: :layout
+    invalid_user_force_sign_in
   end
 end
 
@@ -138,49 +152,59 @@ get "/new_doc/" do
 end
 
 post "/new_doc/" do
-  new_doc = params[:doc_name]
+  validate_user do
+    new_doc = params[:doc_name]
 
-  if new_doc == ""
-    status 422
-    session[:message] = "A name is required."
-    erb :new_doc, layout: :layout
-  elsif !supported_doc_type?(new_doc)
-    status 415
-    session[:message] = "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
-    erb :new_doc, layout: :layout
-  else new_doc == ""
-    validate_document_creation(File.join(root, new_doc))
+    if new_doc == ""
+      status 422
+      session[:message] = "A name is required."
+      erb :new_doc, layout: :layout
+    elsif !supported_doc_type?(new_doc)
+      status 415
+      session[:message] = "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
+      erb :new_doc, layout: :layout
+    else new_doc == ""
+      validate_document_creation(File.join(root, new_doc))
+    end
   end
 end
 
 get "/:filename" do # look at a document
-  path = file_path(params[:filename])
+  validate_user do
+    path = file_path(params[:filename])
 
-  validate_document_access(path) { load_document(path) }
+    validate_document_access(path) { load_document(path) }
+  end
 end
 
 get "/:filename/edit" do # edit a document
-  path = file_path(params[:filename])
+  validate_user do
+    path = file_path(params[:filename])
 
-  validate_document_access(path) do
-    @content = get_content(path)
-    erb :doc_edit, layout: :layout
+    validate_document_access(path) do
+      @content = get_content(path)
+      erb :doc_edit, layout: :layout
+    end
   end
 end
 
 post "/:filename/edit" do # submit edits to a document
-  write_content(file_path(params[:filename]), params[:updated_content])
+  validate_user do
+    write_content(file_path(params[:filename]), params[:updated_content])
 
-  session[:message] = "#{params[:filename]} has been updated."
-  redirect "/"
+    session[:message] = "#{params[:filename]} has been updated."
+    redirect "/"
+  end
 end
 
 post "/:filename/delete" do
-  path = file_path(params[:filename])
+  validate_user do
+    path = file_path(params[:filename])
 
-  validate_document_access(path) do
-    File.delete(path)
-    session[:message] = "#{params[:filename]} was deleted."
-    redirect "/"
+    validate_document_access(path) do
+      File.delete(path)
+      session[:message] = "#{params[:filename]} was deleted."
+      redirect "/"
+    end
   end
 end
