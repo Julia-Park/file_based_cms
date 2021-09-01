@@ -18,6 +18,7 @@ class AppTest < Minitest::Test
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
     create_document "another_document.txt"
     create_document "changes.txt", "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
+    session[:username] = 'admin'
   end
 
   def teardown

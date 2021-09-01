@@ -10,4 +10,9 @@
   </ul>
 <% end %>
 
-<a href="/new_doc/">New Document</a>
+<p><a href="/new_doc/">New Document</a></p>
+<p> 
+  <form id="sign_out" action="/users/signout" method="gets"></form>
+  <span class="session">Signed in as <%= session[:username] %>.</span> 
+  <button form="sign_out" type="submit" value="Sign Out">Sign Out</button>
+</p>

@@ -105,17 +105,33 @@ before do
 end
 
 get '/' do
-  erb :doc_list, layout: :layout
+  if session[:username].nil?
+    erb :index, layout: :layout
+  else
+    erb :doc_list, layout: :layout
+
+  end
 end
 
 get '/users/signin' do
+  erb :sign_in, layout: :layout
+end
+
+post '/users/signin' do
   if valid_credentials?(params[:username], params[:password])
     session[:username] = params[:username]
     session[:message] = 'Welcome!'
     redirect '/'
   else
+    session[:message] = 'Invalid credentials.'
     erb :sign_in, layout: :layout
   end
+end
+
+get '/users/signout' do
+  session.delete(:username)
+  session[:message] = 'You have been signed out.'
+  redirect '/'
 end
 
 get "/new_doc/" do
