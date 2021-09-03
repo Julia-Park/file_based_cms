@@ -90,14 +90,15 @@ def validate_user
   if valid_users.include?(session[:username])
     yield
   else
-    invalid_user_force_sign_in
+    session[:message] = 'You must be signed in to do that.'
+    redirect '/'
   end
 end
 
-def invalid_user_force_sign_in
+def invalid_user_force_sign_in(message='Invalid credentials.')
   session.delete(:username)
   status 422
-  session[:message] = 'Invalid credentials.'
+  session[:message] = message
   erb :sign_in, layout: :layout
 end
 
@@ -137,7 +138,9 @@ post '/users/signin' do
     session[:message] = 'Welcome!'
     redirect '/'
   else
-    invalid_user_force_sign_in
+    status 422
+    session[:message] = 'Invalid credentials.'
+    erb :sign_in, layout: :layout
   end
 end
 
@@ -148,7 +151,9 @@ get '/users/signout' do
 end
 
 get "/new_doc/" do
-  erb :new_doc, layout: :layout
+  validate_user do
+    erb :new_doc, layout: :layout
+  end
 end
 
 post "/new_doc/" do

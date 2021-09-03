@@ -22,18 +22,8 @@ class AppTest < Minitest::Test
   end
 
   def teardown
-    delete_user
+    delete_user if @last_request
     FileUtils.rm_rf(root)
-  end
-
-  def test_sign_in_page
-    get '/users/signin'
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, 'action="/users/signin" method="post"'
-    assert_includes last_response.body, 'label for="username">Username'
-    assert_includes last_response.body, 'label for="password">Password'
-    assert_includes last_response.body, 'type="submit" value="Sign In"'
   end
 
   def sign_in(user='admin', pass='secret')
@@ -62,6 +52,16 @@ class AppTest < Minitest::Test
 
   def post_as_admin(route, **params)
     post route, params, admin_session
+  end
+
+  def test_sign_in_page
+    get '/users/signin'
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'action="/users/signin" method="post"'
+    assert_includes last_response.body, 'label for="username">Username'
+    assert_includes last_response.body, 'label for="password">Password'
+    assert_includes last_response.body, 'type="submit" value="Sign In"'
   end
 
   def test_sign_in
@@ -106,7 +106,7 @@ class AppTest < Minitest::Test
     refute_includes last_response.body, 'about.md'
   end
 
-  def test_index_signed_in # test for listing of documents, edit links, new document
+  def test_index # test for listing of documents, edit links, new document
     get_as_admin "/"
 
     assert_equal 200, last_response.status
@@ -143,7 +143,7 @@ class AppTest < Minitest::Test
     refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
   end
 
-  def test_markdown_to_html # test for content conversion from markdown to HTML
+  def test_markdown_to_html_content # test for content conversion from markdown to HTML
     get_as_admin '/about.md'
 
     assert_equal 200, last_response.status
@@ -160,7 +160,7 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, 'type="submit"'
   end
 
-  def test_nonexistant_content_edit_page
+  def test_content_edit_page_nonexistant_content
     get_as_admin '/thisfiledoesnotexist.txt/edit'
 
     assert_equal 302, last_response.status
@@ -172,6 +172,13 @@ class AppTest < Minitest::Test
 
     get "/"
     refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
+  end
+
+  def test_content_edit_page_signed_out
+    get 'about.md'
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
   end
 
   def test_content_update
@@ -187,13 +194,28 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, new_content
   end
 
-  def test_new_content_page
-    get "/new_doc/"
+  def test_content_update_signed_out
+    new_content = "THIS IS A NEW EDIT VIA TESTING - #{Time.now.getutc}"
+    post "/changes.txt/edit", updated_content: new_content
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
+  end
+
+  def test_add_new_content_page
+    get_as_admin "/new_doc/"
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "Add a new document:"
     assert_includes last_response.body, '<input type="text"'
     assert_includes last_response.body, '<input type="submit"'
+  end
+
+  def test_add_new_content_page_signed_out
+    get '/new_doc/'
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
   end
 
   def test_content_creation
@@ -208,6 +230,14 @@ class AppTest < Minitest::Test
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "href=\"#{new_doc}\""
+  end
+
+  def test_content_creation_signed_out
+    new_doc = "new.txt"
+    post '/new_doc/', doc_name: new_doc
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
   end
 
   def test_content_creation_no_name
@@ -248,5 +278,12 @@ class AppTest < Minitest::Test
     
     assert_equal 200, last_response.status
     refute_includes last_response.body, '<a href="about.md">'
+  end
+
+  def test_content_deletion_signed_out
+    post '/about.md/delete'
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
   end
 end
