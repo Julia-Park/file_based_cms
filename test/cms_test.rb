@@ -6,13 +6,6 @@ require "fileutils"
 
 require_relative "../cms.rb"
 
-def sign_in(user='admin', pass='secret')
-  post "/users/signin", username: user, password: pass
-end
-
-def sign_out
-  get '/users/signout'
-end
 
 class AppTest < Minitest::Test
   include Rack::Test::Methods
@@ -22,7 +15,6 @@ class AppTest < Minitest::Test
   end
 
   def setup
-    sign_in
     FileUtils.mkdir_p(root)
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
     create_document "another_document.txt"
@@ -30,7 +22,7 @@ class AppTest < Minitest::Test
   end
 
   def teardown
-    sign_out
+    delete_user
     FileUtils.rm_rf(root)
   end
 
@@ -44,21 +36,43 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, 'type="submit" value="Sign In"'
   end
 
+  def sign_in(user='admin', pass='secret')
+    post "/users/signin", username: user, password: pass
+  end
+  
+  def sign_out
+    get '/users/signout'
+  end
+  
+  def session
+    last_request.env["rack.session"]
+  end
+
+  def set_user
+    session[:username] = 'admin'
+  end
+
+  def delete_user
+    session.delete(:username)
+  end
+
+  def get_with_user(route, user='admin')
+    get route, {}, {"rack.session" => { username: user} }
+  end
+
   def test_sign_in
-    sign_out
     sign_in('admin', 'secret')
 
     assert_equal 302, last_response.status
+    assert_equal 'Welcome!', session[:message]
 
     get last_response['Location']
 
     assert_equal 200, last_response.status
-    assert_includes last_response.body, 'Welcome!'
     assert_includes last_response.body, 'about.md'
   end
 
   def test_sign_in_invalid_credentials
-    sign_out
     sign_in('invalid', 'password')
 
     assert_equal 422, last_response.status
@@ -73,15 +87,14 @@ class AppTest < Minitest::Test
     sign_out
 
     assert_equal 302, last_response.status
+    assert_equal 'You have been signed out.', session[:message]
 
     get last_response["Location"]
 
-    assert_includes last_response.body, "You have been signed out."
     assert_includes last_response.body, 'action="/users/signin"'
   end
 
   def test_index_signed_out
-    sign_out
     get "/"
 
     assert_equal 200, last_response.status
@@ -90,7 +103,7 @@ class AppTest < Minitest::Test
   end
 
   def test_index_signed_in # test for listing of documents, edit links, new document
-    get "/"
+    get_with_user "/"
 
     assert_equal 200, last_response.status
     assert_includes last_response["Content-Type"], "text/html"
@@ -105,7 +118,7 @@ class AppTest < Minitest::Test
   end
  
   def test_content # test to see if content can be accessed
-    get "/changes.txt"
+    get_with_user '/changes.txt'
 
     assert_equal 200, last_response.status
     assert_includes last_response["Content-Type"], "text/plain"
@@ -113,21 +126,21 @@ class AppTest < Minitest::Test
   end
 
   def test_nonexistant_content # test for redirection, error message, clearing of error message
-    get "/thisfiledoesnotexist.txt"
+    get_with_user '/thisfiledoesnotexist.txt'
 
     assert_equal 302, last_response.status
+    assert_equal "thisfiledoesnotexist.txt does not exist.", session[:message]
 
     get last_response["Location"]
 
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
 
     get "/"
     refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
   end
 
   def test_markdown_to_html # test for content conversion from markdown to HTML
-    get "/about.md"
+    get_with_user '/about.md'
 
     assert_equal 200, last_response.status
     assert_includes last_response["Content-Type"], "text/html"
@@ -135,7 +148,7 @@ class AppTest < Minitest::Test
   end
 
   def test_content_edit_page # test contents of edit page
-    get "/changes.txt/edit"
+    get_with_user '/changes.txt/edit'
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "Edit content of changes.txt:"
@@ -144,30 +157,27 @@ class AppTest < Minitest::Test
   end
 
   def test_nonexistant_content_edit_page
-    get "/thisfiledoesnotexist.txt/edit"
+    get_with_user '/thisfiledoesnotexist.txt/edit'
 
     assert_equal 302, last_response.status
+    assert_equal "thisfiledoesnotexist.txt does not exist.", session[:message]
     
     get last_response["Location"]
 
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
 
     get "/"
     refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
   end
 
   def test_content_update
+    sign_in
     new_content = "THIS IS A NEW EDIT VIA TESTING - #{Time.now.getutc}"
 
     post "/changes.txt/edit", updated_content: new_content
 
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "changes.txt has been updated."
+    assert_equal "changes.txt has been updated.", session[:message]
 
     get "/changes.txt"
     assert_equal 200, last_response.status
@@ -190,15 +200,16 @@ class AppTest < Minitest::Test
     post "/new_doc/", doc_name: new_doc
     
     assert_equal 302, last_response.status
-    
+    assert_equal "#{new_doc} was created.", session[:message]
+
     get last_response["Location"]
 
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "#{new_doc} was created."
     assert_includes last_response.body, "href=\"#{new_doc}\""
   end
 
   def test_content_creation_no_name
+    sign_in
     post "/new_doc/", doc_name: ""
 
     assert_equal 422, last_response.status
@@ -206,6 +217,7 @@ class AppTest < Minitest::Test
   end
 
   def test_content_creation_invalid_type
+    sign_in
     post "/new_doc/", doc_name: "invalid.invalid"
     
     assert_equal 415, last_response.status
@@ -213,6 +225,7 @@ class AppTest < Minitest::Test
   end
 
   def test_content_creation_no_type
+    sign_in
     post "/new_doc/", doc_name: "invalid"
     
     assert_equal 415, last_response.status
@@ -220,6 +233,7 @@ class AppTest < Minitest::Test
   end
 
   def test_content_creation_already_exists
+    sign_in
     post "/new_doc/", doc_name: "about.md"
     
     assert_equal 409, last_response.status
@@ -227,14 +241,15 @@ class AppTest < Minitest::Test
   end
 
   def test_content_deletion
+    sign_in
     post "/about.md/delete"
 
     assert_equal 302, last_response.status
+    assert_equal 'about.md was deleted.', session[:message]
 
     get last_response["Location"]
     
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "about.md was deleted."
     refute_includes last_response.body, '<a href="about.md">'
   end
 end
