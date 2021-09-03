@@ -5,11 +5,15 @@ require 'sinatra/reloader' if development?
 require 'sinatra/content_for'
 require 'tilt/erubis'
 require 'redcarpet'
+require 'yaml'
 
-SUPPORTED_TYPES = ['.txt', '.md']
-VALID_CREDENTIALS = [ 
-  ['admin', 'secret'] 
-]
+def valid_credentials
+  YAML.load_file(File.expand_path(File.join(root, 'users.yml'), __FILE__))
+end
+
+def supported_types
+  ['.txt', '.md']
+end
 
 def render_markdown(string)
   markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
@@ -46,10 +50,18 @@ def validate_document_access(path)
 end
 
 def file_path(filename)
-  File.join(root, params[:filename])
+  File.join(data_root, params[:filename])
 end
 
 def root
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test", __FILE__)
+  else
+    File.expand_path("..", __FILE__)
+  end
+end
+
+def data_root
   if ENV["RACK_ENV"] == "test"
     File.expand_path("../test/data", __FILE__)
   else
@@ -58,7 +70,7 @@ def root
 end
 
 def create_document(name, content = "")
-  File.open(File.join(root, name), "w") do |file|
+  File.open(File.join(data_root, name), "w") do |file|
     file.write(content)
   end
 end
@@ -78,16 +90,15 @@ def validate_document_creation(path)
 end
 
 def supported_doc_type?(filename)
-  SUPPORTED_TYPES.include?(File.extname(filename).downcase)
+  supported_types.include?(File.extname(filename).downcase)
 end
 
 def valid_credentials?(username, password)
-  VALID_CREDENTIALS.include?([username, password])
+  valid_credentials[username] == password
 end
 
 def validate_user
-  valid_users = VALID_CREDENTIALS.map { |cred| cred[0] }
-  if valid_users.include?(session[:username])
+  if valid_credentials.keys.include?(session[:username])
     yield
   else
     session[:message] = 'You must be signed in to do that.'
@@ -115,7 +126,7 @@ configure do
 end
 
 before do
-  @docs = Dir.glob(root + '/*').map do |path|
+  @docs = Dir.glob(data_root + '/*').map do |path|
     File.basename(path) if File.ftype(path) == 'file'
   end.compact
 end
@@ -166,10 +177,10 @@ post "/new_doc/" do
       erb :new_doc, layout: :layout
     elsif !supported_doc_type?(new_doc)
       status 415
-      session[:message] = "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
+      session[:message] = "The file must be #{supported_types.join(' or ')} file types."
       erb :new_doc, layout: :layout
     else new_doc == ""
-      validate_document_creation(File.join(root, new_doc))
+      validate_document_creation(File.join(data_root, new_doc))
     end
   end
 end

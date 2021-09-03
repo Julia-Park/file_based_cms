@@ -15,7 +15,7 @@ class AppTest < Minitest::Test
   end
 
   def setup
-    FileUtils.mkdir_p(root)
+    FileUtils.mkdir_p(data_root)
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
     create_document "another_document.txt"
     create_document "changes.txt", "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
@@ -23,7 +23,7 @@ class AppTest < Minitest::Test
 
   def teardown
     delete_user if @last_request
-    FileUtils.rm_rf(root)
+    FileUtils.rm_rf(data_root)
   end
 
   def sign_in(user='admin', pass='secret')
@@ -251,14 +251,14 @@ class AppTest < Minitest::Test
     post_as_admin '/new_doc/', doc_name: "invalid.invalid"
     
     assert_equal 415, last_response.status
-    assert_includes last_response.body, "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
+    assert_includes last_response.body, "The file must be #{supported_types.join(' or ')} file types."
   end
 
   def test_content_creation_no_type
     post_as_admin '/new_doc/', doc_name: 'invalid'
     
     assert_equal 415, last_response.status
-    assert_includes last_response.body, "The file must be #{SUPPORTED_TYPES.join(' or ')} file types."
+    assert_includes last_response.body, "The file must be #{supported_types.join(' or ')} file types."
   end
 
   def test_content_creation_already_exists
