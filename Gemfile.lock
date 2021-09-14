@@ -2,6 +2,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     backports (3.21.0)
+    bcrypt (3.1.16)
     erubis (2.7.0)
     minitest (5.14.4)
     multi_json (1.15.0)
@@ -31,6 +32,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  bcrypt
   erubis
   minitest
   puma

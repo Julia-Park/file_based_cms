@@ -6,6 +6,7 @@ require 'sinatra/content_for'
 require 'tilt/erubis'
 require 'redcarpet'
 require 'yaml'
+require 'bcrypt'
 
 def valid_credentials
   YAML.load_file(File.expand_path(File.join(root, 'users.yml'), __FILE__))
@@ -94,7 +95,8 @@ def supported_doc_type?(filename)
 end
 
 def valid_credentials?(username, password)
-  valid_credentials[username] == password
+  hashed_password = valid_credentials[username]
+  hashed_password ? BCrypt::Password.new(hashed_password) == password : false
 end
 
 def validate_user
