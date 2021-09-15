@@ -76,18 +76,8 @@ def create_document(name, content = "")
   end
 end
 
-def validate_document_creation(path)
-  new_doc = File.basename(path)
-
-  if File.file?(path)
-    status 409
-    session[:message] = "#{new_doc} already exists."
-    erb :new_doc, layout: :layout
-  else
-    create_document(new_doc)
-    session[:message] = "#{new_doc} was created."
-    redirect "/"
-  end
+def document_exists?(path)
+  File.file?(path)
 end
 
 def supported_doc_type?(filename)
@@ -181,8 +171,14 @@ post "/new_doc/" do
       status 415
       session[:message] = "The file must be #{supported_types.join(' or ')} file types."
       erb :new_doc, layout: :layout
-    else new_doc == ""
-      validate_document_creation(File.join(data_root, new_doc))
+    elsif document_exists?(File.join(data_root, new_doc))
+      status 409
+      session[:message] = "#{new_doc} already exists."
+      erb :new_doc, layout: :layout
+    else
+      create_document(new_doc)
+      session[:message] = "#{new_doc} was created."
+      redirect "/"
     end
   end
 end
@@ -223,6 +219,17 @@ post "/:filename/delete" do
       File.delete(path)
       session[:message] = "#{params[:filename]} was deleted."
       redirect "/"
+    end
+  end
+end
+
+get "/:filename/duplicate" do # duplicate a document
+  validate_user do
+    path = file_path(params[:filename])
+
+    validate_document_access(path) do
+      @content = get_content(path)
+      erb :doc_edit, layout: :layout
     end
   end
 end
