@@ -51,7 +51,7 @@ def validate_document_access(path)
 end
 
 def file_path(filename)
-  File.join(data_root, params[:filename])
+  File.join(data_root, filename)
 end
 
 def root
@@ -70,8 +70,26 @@ def data_root
   end
 end
 
+def validate_document_creation(new_doc)
+  if new_doc == ""
+    status 422
+    session[:message] = "A name is required."
+    erb :new_doc, layout: :layout
+  elsif !supported_doc_type?(new_doc)
+    status 415
+    session[:message] = "The file must be #{supported_types.join(' or ')} file types."
+    erb :new_doc, layout: :layout
+  elsif document_exists?(file_path(new_doc))
+    status 409
+    session[:message] = "#{new_doc} already exists."
+    erb :new_doc, layout: :layout
+  else
+    yield
+  end
+end
+
 def create_document(name, content = "")
-  File.open(File.join(data_root, name), "w") do |file|
+  File.open(file_path(name), "w") do |file|
     file.write(content)
   end
 end
@@ -163,19 +181,7 @@ post "/new_doc/" do
   validate_user do
     new_doc = params[:doc_name]
 
-    if new_doc == ""
-      status 422
-      session[:message] = "A name is required."
-      erb :new_doc, layout: :layout
-    elsif !supported_doc_type?(new_doc)
-      status 415
-      session[:message] = "The file must be #{supported_types.join(' or ')} file types."
-      erb :new_doc, layout: :layout
-    elsif document_exists?(File.join(data_root, new_doc))
-      status 409
-      session[:message] = "#{new_doc} already exists."
-      erb :new_doc, layout: :layout
-    else
+    validate_document_creation(new_doc) do
       create_document(new_doc)
       session[:message] = "#{new_doc} was created."
       redirect "/"
@@ -223,13 +229,19 @@ post "/:filename/delete" do
   end
 end
 
-get "/:filename/duplicate" do # duplicate a document
+post "/:filename/duplicate" do # duplicate a document
   validate_user do
-    path = file_path(params[:filename])
+    old_document_path = file_path(params[:filename])
+    new_doc = params[:filename]
 
-    validate_document_access(path) do
-      @content = get_content(path)
-      erb :doc_edit, layout: :layout
+    until !document_exists?(file_path(new_doc)) do
+      new_doc = new_doc.split(".").insert(1, '_copy').insert(-2, '.').join
+    end
+
+    validate_document_creation(new_doc) do
+      create_document(new_doc, get_content(old_document_path))
+      session[:message] = "#{new_doc} was created."
+      redirect "/"
     end
   end
 end

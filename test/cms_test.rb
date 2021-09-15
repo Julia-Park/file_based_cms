@@ -286,4 +286,50 @@ class AppTest < Minitest::Test
     assert_equal 302, last_response.status
     assert_equal 'You must be signed in to do that.', session[:message]
   end
+
+  def test_content_duplication
+    # name should be original document with _copy appended before extension
+    # content should be the same as original document
+    post_as_admin '/about.md/duplicate'
+
+    assert_equal 302, last_response.status
+    assert_equal "about_copy.md was created.", session[:message]
+
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "href=\"about_copy.md\""
+    
+    get '/about.md'
+    original_content = last_response.body
+
+    get '/about_copy.md'
+    assert_equal original_content, last_response.body
+  end
+
+  def test_content_duplication_signed_out
+    post '/about.md/duplicate'
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
+  end
+
+  def test_content_duplication_new_name_already_exists
+    # _copy should be repeatedly appended before extension until new name is unique
+    create_document "about_copy.md", "about_copy"
+    create_document "about_copy_copy.md", "about_copy_copy"
+
+    post_as_admin '/about.md/duplicate'
+
+    assert_equal 302, last_response.status
+    assert_equal "about_copy_copy_copy.md was created.", session[:message]
+
+    get last_response["Location"]
+
+    get '/about.md'
+    original_content = last_response.body
+
+    get '/about_copy_copy_copy.md'
+    assert_equal original_content, last_response.body
+  end
 end
