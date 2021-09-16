@@ -1,5 +1,7 @@
 <form action="/<%= params[:filename] %>/edit" method="post">
-  <label for="updated_content">Edit content of <%= params[:filename] %>:</label><br>
-  <textarea name="updated_content" rows="30" cols="100"><%= @content %></textarea><br>
+  <label for ="rename_document">Rename <%= params[:filename] %>:</label>
+  <input type="text" name="new_name" value=<%= params[:filename]%>>
+  <p><label for="updated_content">Edit content of <%= params[:filename] %>:</label><br>
+  <textarea name="updated_content" rows="30" cols="100"><%= @content %></textarea><br></p>
   <input type="submit" value="Save Changes">
 </form>

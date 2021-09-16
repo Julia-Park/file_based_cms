@@ -74,15 +74,12 @@ def validate_document_creation(new_doc)
   if new_doc == ""
     status 422
     session[:message] = "A name is required."
-    erb :new_doc, layout: :layout
   elsif !supported_doc_type?(new_doc)
     status 415
     session[:message] = "The file must be #{supported_types.join(' or ')} file types."
-    erb :new_doc, layout: :layout
   elsif document_exists?(file_path(new_doc))
     status 409
     session[:message] = "#{new_doc} already exists."
-    erb :new_doc, layout: :layout
   else
     yield
   end
@@ -186,6 +183,8 @@ post "/new_doc/" do
       session[:message] = "#{new_doc} was created."
       redirect "/"
     end
+
+    erb :new_doc, layout: :layout
   end
 end
 
@@ -208,12 +207,37 @@ get "/:filename/edit" do # edit a document
   end
 end
 
-post "/:filename/edit" do # submit edits to a document
+post "/:filename/edit" do # submit edits and rename a document
   validate_user do
-    write_content(file_path(params[:filename]), params[:updated_content])
+    filename = params[:filename]
+    new_name = params[:new_name] || filename
+    old_content = get_content(file_path(filename))
+    @content = params[:updated_content] || old_content
+    message = []
 
-    session[:message] = "#{params[:filename]} has been updated."
-    redirect "/"
+    if filename != new_name
+      validate_document_creation(new_name) do
+        File.rename(file_path(filename), file_path(new_name))
+        message << "has been renamed to #{new_name}"
+      end
+    end
+
+    if !session[:message].nil?
+      erb :doc_edit, layout: :layout
+    else
+      if old_content != @content
+        write_content(file_path(filename), @content)
+        message << 'has been updated'
+      end
+
+      session[:message] = if !message.empty?
+        "#{filename} #{message.join(' and ')}." 
+      else
+        "No changes were made to #{filename}."
+      end
+
+      redirect "/"
+    end
   end
 end
 
@@ -240,7 +264,7 @@ post "/:filename/duplicate" do # duplicate a document
 
     validate_document_creation(new_doc) do
       create_document(new_doc, get_content(old_document_path))
-      session[:message] = "#{new_doc} was created."
+      session[:message] = "#{params[:filename]} was duplicated to #{new_doc}."
       redirect "/"
     end
   end

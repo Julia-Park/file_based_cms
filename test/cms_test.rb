@@ -155,6 +155,7 @@ class AppTest < Minitest::Test
     get_as_admin '/changes.txt/edit'
 
     assert_equal 200, last_response.status
+    assert_includes last_response.body, "Rename changes.txt"
     assert_includes last_response.body, "Edit content of changes.txt:"
     assert_includes last_response.body, "<textarea"
     assert_includes last_response.body, 'type="submit"'
@@ -181,7 +182,7 @@ class AppTest < Minitest::Test
     assert_equal 'You must be signed in to do that.', session[:message]
   end
 
-  def test_content_update
+  def test_content_edit_update
     new_content = "THIS IS A NEW EDIT VIA TESTING - #{Time.now.getutc}"
 
     post_as_admin "/changes.txt/edit", updated_content: new_content
@@ -194,7 +195,65 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, new_content
   end
 
-  def test_content_update_signed_out
+  def test_content_edit_rename
+    new_name = 'changes.md'
+
+    post_as_admin '/changes.txt/edit', new_name: new_name
+
+    assert_equal 302, last_response.status
+    assert_equal "changes.txt has been renamed to changes.md.", session[:message]
+
+    get last_response["Location"]
+
+    refute_includes last_response.body, "href=\"changes.txt"
+    assert_includes last_response.body, "href=\"changes.md"
+
+    get "/changes.md"
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
+  end
+
+  def test_content_edit_rename_invalid
+    new_name = 'about.md'
+    new_content = 'This is the new content.'
+    
+    post_as_admin '/changes.txt/edit', new_name: new_name, updated_content: new_content
+    
+    assert_equal 409, last_response.status
+    assert_includes last_response.body, "about.md already exists."
+    get 'changes.txt'
+    refute_includes last_response.body, new_content
+    assert_includes last_response.body, "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
+
+    new_name = 'changes'
+    post '/changes.txt/edit', new_name: new_name, update_content: new_content
+
+    assert_equal 415, last_response.status
+    assert_includes last_response.body, "The file must be #{supported_types.join(' or ')} file types."
+    refute_equal new_content, last_response.body
+    get 'changes.txt'
+    refute_includes last_response.body, new_content
+    assert_includes last_response.body, "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
+
+    new_name = ''
+    post '/changes.txt/edit', new_name: new_name, update_content: new_content
+
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "A name is required."
+    refute_equal new_content, last_response.body
+    get 'changes.txt'
+    refute_includes last_response.body, new_content
+    assert_includes last_response.body, "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
+  end
+
+  def test_content_edit_no_change
+    post_as_admin '/changes.txt/edit'
+
+    assert_equal 302, last_response.status
+    assert_equal "No changes were made to changes.txt.", session[:message]
+  end
+
+  def test_content_edit_signed_out
     new_content = "THIS IS A NEW EDIT VIA TESTING - #{Time.now.getutc}"
     post "/changes.txt/edit", updated_content: new_content
 
@@ -293,7 +352,7 @@ class AppTest < Minitest::Test
     post_as_admin '/about.md/duplicate'
 
     assert_equal 302, last_response.status
-    assert_equal "about_copy.md was created.", session[:message]
+    assert_equal "about.md was duplicated to about_copy.md.", session[:message]
 
     get last_response["Location"]
 
@@ -322,7 +381,7 @@ class AppTest < Minitest::Test
     post_as_admin '/about.md/duplicate'
 
     assert_equal 302, last_response.status
-    assert_equal "about_copy_copy_copy.md was created.", session[:message]
+    assert_equal "about.md was duplicated to about_copy_copy_copy.md.", session[:message]
 
     get last_response["Location"]
 
