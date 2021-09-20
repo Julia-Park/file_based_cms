@@ -19,11 +19,13 @@ class AppTest < Minitest::Test
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
     create_document "another_document.txt"
     create_document "changes.txt", "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
+    create_blank_users_yaml
+    add_new_credentials('admin', 'secret')
   end
 
   def teardown
     delete_user if @last_request
-    delete_credentials('testuser')
+    File.delete(File.join(root, 'users.yml'))
     FileUtils.rm_rf(data_root)
   end
 
@@ -97,6 +99,36 @@ class AppTest < Minitest::Test
     get last_response["Location"]
 
     assert_includes last_response.body, 'action="/users/signin"'
+  end
+
+  def test_signup_page
+    get '/users/signup'
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'Enter your new login credentials below:'
+    assert_includes last_response.body, 'form action="/users/signup" method="post"'
+  end
+
+  def test_signup
+    post '/users/signup', username: 'testuser', password: 'pass1'
+
+    assert_equal 302, last_response.status
+    assert_equal 'User testuser added!  Please sign in with the new credentials.', session[:message]
+    assert_includes last_response['Location'], '/users/signin'
+  end
+
+  def test_signup_blank_password
+    post '/users/signup', username: 'testuser', password: ''
+
+    assert_equal 409, last_response.status
+    assert_includes last_response.body, 'Password must not be blank.'
+  end
+
+  def test_signup_username_already_exists
+    post '/users/signup', username: 'admin', password: 'repeat'
+
+    assert_equal 409, last_response.status
+    assert_includes last_response.body, 'Username already exists.'
   end
 
   def test_index_signed_out
