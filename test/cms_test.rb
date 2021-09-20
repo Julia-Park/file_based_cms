@@ -3,6 +3,7 @@ ENV["RACK_ENV"] = "test"
 require "minitest/autorun"
 require "rack/test"
 require "fileutils"
+require "chunky_png"
 
 require_relative "../cms.rb"
 
@@ -19,6 +20,8 @@ class AppTest < Minitest::Test
     create_document "about.md", "#Ruby is simple in appearance, but is very complex inside"
     create_document "another_document.txt"
     create_document "changes.txt", "This site is dedicated to history of Ruby language evolution. Basically, it is just the same information that each Ruby versionâ€™s NEWS file contains, just in more readable and informative manner."
+    create_document "aqua_image.md", "#The line below is aqua!\n![Aqua](aqua_line.png)\nWOW!"
+    create_image("aqua_line.png")
     create_blank_users_yaml
     add_new_credentials('admin', 'secret')
   end
@@ -27,6 +30,11 @@ class AppTest < Minitest::Test
     delete_user if @last_request
     File.delete(File.join(root, 'users.yml'))
     FileUtils.rm_rf(data_root)
+  end
+
+  def create_image(image_name)
+    image = ChunkyPNG::Image.new(20, 5, ChunkyPNG::Color::html_color('aqua'))
+    image.save(File.join(data_root, image_name), :fast_rgb => true, :best_compression => true)
   end
 
   def sign_in(user='admin', pass='secret')
@@ -154,7 +162,7 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, 'Sign Out</button>'
   end
  
-  def test_content # test to see if content can be accessed
+  def test_content # test to see if .txt content can be accessed
     get_as_admin '/changes.txt'
 
     assert_equal 200, last_response.status
@@ -176,12 +184,20 @@ class AppTest < Minitest::Test
     refute_includes last_response.body, "thisfiledoesnotexist.txt does not exist."
   end
 
-  def test_markdown_to_html_content # test for content conversion from markdown to HTML
-    get_as_admin '/about.md'
+  def test_image_content
+    get_as_admin '/aqua_line.png'
 
     assert_equal 200, last_response.status
+    assert_equal last_response['Content-Type'], 'image/png'
+  end
+
+  def test_markdown_to_html_content
+    get_as_admin 'aqua_image.md'
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'img src="aqua_line.png"'
     assert_includes last_response["Content-Type"], "text/html"
-    assert_includes last_response.body, "<h1>Ruby is"
+    assert_includes last_response.body , '<h1>The line below is aqua!'
   end
 
   def test_content_edit_page # test contents of edit page
