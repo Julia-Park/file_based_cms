@@ -9,6 +9,7 @@ gem "rack-test"
 gem "minitest"
 gem "redcarpet"
 gem "bcrypt"
+gem "chunky_png"
 
 group :production do
   gem "puma"

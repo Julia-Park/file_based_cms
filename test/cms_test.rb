@@ -262,7 +262,7 @@ class AppTest < Minitest::Test
     post '/changes.txt/edit', new_name: new_name, update_content: new_content
 
     assert_equal 415, last_response.status
-    assert_includes last_response.body, "The file must be #{supported_types.join(' or ')} file types."
+    assert_includes last_response.body, "The file must be #{supported_document_types.join(' or ')} file types."
     refute_equal new_content, last_response.body
     get 'changes.txt'
     refute_includes last_response.body, new_content
@@ -343,14 +343,14 @@ class AppTest < Minitest::Test
     post_as_admin '/new_doc/', doc_name: "invalid.invalid"
     
     assert_equal 415, last_response.status
-    assert_includes last_response.body, "The file must be #{supported_types.join(' or ')} file types."
+    assert_includes last_response.body, "The file must be #{supported_document_types.join(' or ')} file types."
   end
 
   def test_content_creation_no_type
     post_as_admin '/new_doc/', doc_name: 'invalid'
     
     assert_equal 415, last_response.status
-    assert_includes last_response.body, "The file must be #{supported_types.join(' or ')} file types."
+    assert_includes last_response.body, "The file must be #{supported_document_types.join(' or ')} file types."
   end
 
   def test_content_creation_already_exists

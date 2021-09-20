@@ -32,8 +32,12 @@ def delete_credentials(user)
   save_credentials(credentials)
 end
 
-def supported_types
+def supported_document_types
   ['.txt', '.md']
+end
+
+def supported_image_types
+  [".jpeg", ".jpg", ".gif", ".png", ".tif"]
 end
 
 def render_markdown(string)
@@ -49,7 +53,7 @@ def write_content(path, new_content)
   File.write(path, new_content)
 end
 
-def load_document(path)
+def load_content(path)
   content = get_content(path)
 
   case File.extname(path).downcase
@@ -58,6 +62,8 @@ def load_document(path)
     content
   when ".md"
     erb render_markdown(content), layout: :layout
+  when ".jpeg", ".jpg", ".gif", ".png", ".tif"
+    send_file path
   end
 end
 
@@ -94,9 +100,9 @@ def validate_document_creation(new_doc)
   if new_doc == ""
     status 422
     session[:message] = "A name is required."
-  elsif !supported_doc_type?(new_doc)
+  elsif !supported_document_type?(new_doc)
     status 415
-    session[:message] = "The file must be #{supported_types.join(' or ')} file types."
+    session[:message] = "The file must be #{supported_document_types.join(' or ')} file types."
   elsif document_exists?(file_path(new_doc))
     status 409
     session[:message] = "#{new_doc} already exists."
@@ -115,8 +121,8 @@ def document_exists?(path)
   File.file?(path)
 end
 
-def supported_doc_type?(filename)
-  supported_types.include?(File.extname(filename).downcase)
+def supported_document_type?(filename)
+  supported_document_types.include?(File.extname(filename).downcase)
 end
 
 def valid_credentials?(username, password)
@@ -218,7 +224,7 @@ end
 
 post "/new_doc/" do
   validate_user do
-    new_doc = params[:doc_name]
+    new_doc = params[:doc_name].strip.gsub(' ', '_')
 
     validate_document_creation(new_doc) do
       create_document(new_doc)
@@ -234,7 +240,7 @@ get "/:filename" do # look at a document
   validate_user do
     path = file_path(params[:filename])
 
-    validate_document_access(path) { load_document(path) }
+    validate_document_access(path) { load_content(path) }
   end
 end
 
@@ -251,7 +257,7 @@ end
 
 post "/:filename/edit" do # submit edits and rename a document
   validate_user do
-    filename = params[:filename]
+    filename = params[:filename].strip.gsub(' ', '_')
     new_name = params[:new_name] || filename
     old_content = get_content(file_path(filename))
     @content = params[:updated_content] || old_content
