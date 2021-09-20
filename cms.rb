@@ -8,14 +8,28 @@ require 'redcarpet'
 require 'yaml'
 require 'bcrypt'
 
+def create_blank_users_yaml
+  save_credentials({})
+end
+
 def valid_credentials
   YAML.load_file(File.expand_path(File.join(root, 'users.yml'), __FILE__))
+end
+
+def save_credentials(credentials)
+  File.open(File.join(root, 'users.yml'), 'w') { |file| file.write(credentials.to_yaml) }
 end
 
 def add_new_credentials(new_user, password)
   credentials = valid_credentials
   credentials[new_user] = BCrypt::Password.create(password).to_s
-  File.open(File.join(root, 'users.yml'), 'w') { |file| file.write(credentials.to_yaml) }
+  save_credentials(credentials)
+end
+
+def delete_credentials(user)
+  credentials = valid_credentials
+  credentials.delete(user)
+  save_credentials(credentials)
 end
 
 def supported_types
@@ -142,6 +156,7 @@ before do
   @docs = Dir.glob(data_root + '/*').map do |path|
     File.basename(path) if File.ftype(path) == 'file'
   end.compact
+  create_blank_users_yaml if !File.file?(File.join(root, 'users.yml'))
 end
 
 get '/' do

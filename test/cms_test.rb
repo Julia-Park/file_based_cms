@@ -23,6 +23,7 @@ class AppTest < Minitest::Test
 
   def teardown
     delete_user if @last_request
+    delete_credentials('testuser')
     FileUtils.rm_rf(data_root)
   end
 
