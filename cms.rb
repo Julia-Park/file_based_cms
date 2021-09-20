@@ -12,6 +12,12 @@ def valid_credentials
   YAML.load_file(File.expand_path(File.join(root, 'users.yml'), __FILE__))
 end
 
+def add_new_credentials(new_user, password)
+  credentials = valid_credentials
+  credentials[new_user] = BCrypt::Password.create(password).to_s
+  File.open(File.join(root, 'users.yml'), 'w') { |file| file.write(credentials.to_yaml) }
+end
+
 def supported_types
   ['.txt', '.md']
 end
@@ -166,6 +172,27 @@ get '/users/signout' do
   session.delete(:username)
   session[:message] = 'You have been signed out.'
   redirect '/'
+end
+
+get '/users/signup' do
+  erb :sign_up, layout: :layout
+end
+
+post '/users/signup' do
+  if !valid_credentials.keys.include?(params[:username]) && params[:password] != ''
+    add_new_credentials(params[:username], params[:password])
+    session[:message] = "User #{params[:username]} added!  Please sign in with the new credentials."
+    redirect '/users/signin'
+  elsif params[:password] == ''
+    status 409
+    session[:message] = 'Password must not be blank.'
+    erb :sign_up, layout: :layout
+  else
+    status 409
+    session[:message] = 'Username already exists.'
+    erb :sign_up, layout: :layout
+  end
+
 end
 
 get "/new_doc/" do
