@@ -62,7 +62,7 @@ def load_content(path)
     content
   when ".md"
     erb render_markdown(content), layout: :layout
-  when ".jpeg", ".jpg", ".gif", ".png", ".tif"
+  when *supported_image_types
     send_file path
   end
 end
@@ -247,8 +247,13 @@ end
 get "/:filename/edit" do # edit a document
   validate_user do
     path = file_path(params[:filename])
-
+    
     validate_document_access(path) do
+      if supported_image_types.include?(File.extname(path).downcase)
+        session[:message] = "Image files cannot be edited."
+        redirect '/'
+      end
+      
       @content = get_content(path)
       erb :doc_edit, layout: :layout
     end
@@ -306,6 +311,11 @@ post "/:filename/duplicate" do # duplicate a document
     old_document_path = file_path(params[:filename])
     new_doc = params[:filename]
 
+    if supported_image_types.include?(File.extname(old_document_path).downcase)
+      session[:message] = "Image files cannot be duplicated."
+      redirect '/'
+    end
+
     until !document_exists?(file_path(new_doc)) do
       new_doc = new_doc.split(".").insert(1, '_copy').insert(-2, '.').join
     end
@@ -316,4 +326,11 @@ post "/:filename/duplicate" do # duplicate a document
       redirect "/"
     end
   end
+end
+
+get "/image/upload" do
+  erb :upload_image, layout: :layout
+end
+
+post "/image/upload" do
 end

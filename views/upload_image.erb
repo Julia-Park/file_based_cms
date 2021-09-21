@@ -1,0 +1,12 @@
+<form action="/image/upload/" method="post">
+  <label for="image_file">Upload a new image: </label>
+  <input type="file" name="image_file">
+  <p>
+    <label for="image_name">New image name: </label>
+    <input type="text" name="image_name" value=<%= params[:image_name]%>>
+    <label><i>The original name will be used if left blank.</i></label>
+  </p>
+  <p>
+    <input type="submit" value="Upload">
+  </p>
+</form>

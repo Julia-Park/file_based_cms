@@ -4,15 +4,17 @@
       <form action="<%= filename %>/delete" method="post" id="delete_<%= filename %>"></form>
       <form action="<%= filename %>/duplicate" method="post" id="duplicate_<%=filename %>"></form>
       <form action="<%= filename %>/edit" method="get" id="edit_<%=filename %>"></form>
-      <a href="<%= filename %>"><%= filename %></a> | 
-      <button type="submit" form="edit_<%= filename %>" value="edit">Edit</button> | 
-      <button type="submit" form="duplicate_<%= filename %>" value="duplicate">Duplicate</button> |
+      <a href="<%= filename %>"><%= filename %></a>  |  
+      <% if supported_document_types.include?(File.extname(filename).downcase) %>
+        <button type="submit" form="edit_<%= filename %>" value="edit">Edit</button>  |  
+        <button type="submit" form="duplicate_<%= filename %>" value="duplicate">Duplicate</button>  | 
+      <% end %>
       <button type="submit" form="delete_<%= filename %>" value="delete">Delete</button>
     </li>
   </ul>
 <% end %>
 
-<p><a href="/new_doc/">New Document</a></p>
+<p><a href="/new_doc/">New Document</a>  |  <a href="/image/upload">Upload Image</a></p>
 <p> 
   <form id="sign_out" action="/users/signout" method="gets"></form>
   <span class="session">Signed in as <%= session[:username] %>.</span> 
