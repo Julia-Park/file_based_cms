@@ -10,6 +10,7 @@ require_relative "../cms.rb"
 
 class AppTest < Minitest::Test
   include Rack::Test::Methods
+  # include Rack::Test
 
   def app
     Sinatra::Application
@@ -32,9 +33,9 @@ class AppTest < Minitest::Test
     FileUtils.rm_rf(data_root)
   end
 
-  def create_image(image_name)
+  def create_image(image_name, root_folder = data_root)
     image = ChunkyPNG::Image.new(20, 5, ChunkyPNG::Color::html_color('aqua'))
-    image.save(File.join(data_root, image_name), :fast_rgb => true, :best_compression => true)
+    image.save(File.join(root_folder, image_name), :fast_rgb => true, :best_compression => true)
   end
 
   def sign_in(user='admin', pass='secret')
@@ -160,6 +161,10 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, 'Signed in as admin'
     assert_includes last_response.body, 'action="/users/signout"'
     assert_includes last_response.body, 'Sign Out</button>'
+    assert_includes last_response.body, '<a href="aqua_line.png">'
+    refute_includes last_response.body, 'action="aqua_line.png/edit'
+    refute_includes last_response.body, 'action="aqua_line.png/duplicate'
+    assert_includes last_response.body, 'action="aqua_line.png/delete'
   end
  
   def test_content # test to see if .txt content can be accessed
@@ -439,5 +444,100 @@ class AppTest < Minitest::Test
 
     get '/about_copy_copy_copy.md'
     assert_equal original_content, last_response.body
+  end
+
+  def test_upload_image_page
+    get_as_admin '/image/upload'
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'input type="file"'
+    assert_includes last_response.body, 'Upload a new image'
+    assert_includes last_response.body, 'action="/image/upload'
+    assert_includes last_response.body, 'type="submit" value="Upload"'
+  end
+
+  def test_upload_image_page_signed_out
+    post '/image/upload'
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
+  end
+
+  def test_upload_image
+    upload_folder = File.join(data_root, 'upload')
+    FileUtils.mkdir_p(upload_folder)
+    create_image('image.png', upload_folder)
+    test_image = Rack::Test::UploadedFile.new(File.join(upload_folder, 'image.png'), 'image/png')
+
+    post_as_admin '/image/upload', 
+      image_file: test_image,
+      image_name: 'test_image.png',
+      headers:  { 'content-type': 'multipart/form-data' }
+
+    assert_equal 302, last_response.status
+    assert_equal "test_image.png has been uploaded.", session[:message]
+
+    get last_response['Location']
+
+    assert_includes last_response.body, '<a href="test_image.png">'
+  end
+
+  def test_upload_image_no_name_specified
+    upload_folder = File.join(data_root, 'upload')
+    FileUtils.mkdir_p(upload_folder)
+    create_image('image.png', upload_folder)
+    test_image = Rack::Test::UploadedFile.new(File.join(upload_folder, 'image.png'), 'image/png')
+
+    post_as_admin '/image/upload', 
+      image_file: test_image,
+      image_name: '',
+      headers:  { 'content-type': 'multipart/form-data' }
+
+    assert_equal 302, last_response.status
+    assert_equal "image.png has been uploaded.", session[:message]
+
+    get last_response['Location']
+
+    assert_includes last_response.body, '<a href="image.png">'
+  end
+
+  def test_upload_image_signed_out
+    upload_folder = File.join(data_root, 'upload')
+    FileUtils.mkdir_p(upload_folder)
+    create_image('image.png', upload_folder)
+    test_image = Rack::Test::UploadedFile.new(File.join(upload_folder, 'image.png'), 'image/png')
+
+    post '/image/upload', 
+      image_file: test_image,
+      image_name: '',
+      headers:  { 'content-type': 'multipart/form-data' }
+
+    assert_equal 302, last_response.status
+    assert_equal 'You must be signed in to do that.', session[:message]
+  end
+
+  def test_upload_image_no_image_selected
+    post_as_admin '/image/upload', 
+      image_file: nil,
+      image_name: 'test_image.png',
+      headers:  { 'content-type': 'multipart/form-data' }
+
+    assert_equal 400, last_response.status
+    assert_includes last_response.body, 'Select an image to upload.'
+  end
+
+  def test_upload_image_name_already_exists
+    upload_folder = File.join(data_root, 'upload')
+    FileUtils.mkdir_p(upload_folder)
+    create_image('image.png', upload_folder)
+    test_image = Rack::Test::UploadedFile.new(File.join(upload_folder, 'image.png'), 'image/png')
+
+    post_as_admin '/image/upload', 
+      image_file: test_image,
+      image_name: 'aqua_line.png',
+      headers:  { 'content-type': 'multipart/form-data' }
+
+    assert_equal 409, last_response.status
+    assert_includes last_response.body, 'aqua_line.png already exists.'
   end
 end

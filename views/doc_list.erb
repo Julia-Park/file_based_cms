@@ -2,8 +2,11 @@
   <ul>
     <li>
       <form action="<%= filename %>/delete" method="post" id="delete_<%= filename %>"></form>
-      <form action="<%= filename %>/duplicate" method="post" id="duplicate_<%=filename %>"></form>
-      <form action="<%= filename %>/edit" method="get" id="edit_<%=filename %>"></form>
+      <% if supported_document_types.include?(File.extname(filename).downcase) %>
+
+        <form action="<%= filename %>/duplicate" method="post" id="duplicate_<%=filename %>"></form>
+        <form action="<%= filename %>/edit" method="get" id="edit_<%=filename %>"></form>
+      <% end %>
       <a href="<%= filename %>"><%= filename %></a>  |  
       <% if supported_document_types.include?(File.extname(filename).downcase) %>
         <button type="submit" form="edit_<%= filename %>" value="edit">Edit</button>  |  

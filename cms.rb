@@ -103,7 +103,7 @@ def validate_document_creation(new_doc)
   elsif !supported_document_type?(new_doc)
     status 415
     session[:message] = "The file must be #{supported_document_types.join(' or ')} file types."
-  elsif document_exists?(file_path(new_doc))
+  elsif content_exists?(file_path(new_doc))
     status 409
     session[:message] = "#{new_doc} already exists."
   else
@@ -117,7 +117,7 @@ def create_document(name, content = "")
   end
 end
 
-def document_exists?(path)
+def content_exists?(path)
   File.file?(path)
 end
 
@@ -316,7 +316,7 @@ post "/:filename/duplicate" do # duplicate a document
       redirect '/'
     end
 
-    until !document_exists?(file_path(new_doc)) do
+    until !content_exists?(file_path(new_doc)) do
       new_doc = new_doc.split(".").insert(1, '_copy').insert(-2, '.').join
     end
 
@@ -329,8 +329,33 @@ post "/:filename/duplicate" do # duplicate a document
 end
 
 get "/image/upload" do
-  erb :upload_image, layout: :layout
+  validate_user do
+    erb :upload_image, layout: :layout
+  end
 end
 
 post "/image/upload" do
+  validate_user do
+    if params[:image_file].nil?
+      status 400
+      session[:message] = "Select an image to upload."
+    else
+      image_name = params[:image_name].strip.gsub(' ', '_')
+      image_name = params[:image_file][:filename] if image_name == ''
+      image_path = file_path(image_name) 
+
+      if content_exists?(image_path)
+        status 409
+        session[:message] = "#{image_name} already exists."
+      else
+        File.open(image_path, "wb") do |file|
+          session[:message] = image_name
+            file.write(params[:image_file][:tempfile].read)
+        end
+        session[:message] = "#{image_name} has been uploaded."
+        redirect "/"
+      end
+    end
+    erb :upload_image, layout: :layout
+  end
 end

@@ -1,6 +1,6 @@
-<form action="/image/upload/" method="post">
+<form action="/image/upload" method="post" enctype="multipart/form-data">
   <label for="image_file">Upload a new image: </label>
-  <input type="file" name="image_file">
+  <input type="file" name="image_file" accept="<%= supported_image_types.join(',') %>">
   <p>
     <label for="image_name">New image name: </label>
     <input type="text" name="image_name" value=<%= params[:image_name]%>>
